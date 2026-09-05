@@ -140,6 +140,15 @@ p { margin: 0; }
   border-radius: var(--a-radius);
   background: var(--a-papier);
 }
+.admin-kleur-label { display: flex; align-items: center; gap: 0.5rem; }
+.admin-kleur-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--a-lijn);
+  flex-shrink: 0;
+}
 .admin-kleur-rij { display: flex; align-items: center; gap: 0.7rem; }
 .admin-kleur-rij input[type="text"] { flex: 1; }
 
