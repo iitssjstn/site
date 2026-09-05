@@ -1,6 +1,9 @@
 .git
 .github
+.gitignore
 README.md
-docker-compose.yml
 *.md
+node_modules
+server/node_modules
+data/config.json.bak
 .DS_Store
