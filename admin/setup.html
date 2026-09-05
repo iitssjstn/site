@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eerste account aanmaken</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-auth-body">
+  <main class="admin-auth-kaart">
+    <h1>Welkom</h1>
+    <p class="admin-auth-uitleg">
+      Er is nog geen beheerder-account. Maak hieronder het eerste account aan —
+      dit wordt automatisch een <strong>beheerder</strong>-account waarmee je
+      later ook andere accounts (bijvoorbeeld voor de klant) kunt toevoegen.
+    </p>
+
+    <form id="setup-formulier">
+      <div class="admin-veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam" autocomplete="username" required>
+      </div>
+      <div class="admin-veld">
+        <label for="wachtwoord">Wachtwoord (minimaal 8 tekens)</label>
+        <input type="password" id="wachtwoord" name="wachtwoord" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div class="admin-veld">
+        <label for="wachtwoord-herhaal">Wachtwoord herhalen</label>
+        <input type="password" id="wachtwoord-herhaal" name="wachtwoord-herhaal" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div id="foutmelding" class="admin-melding fout"></div>
+      <button type="submit" class="admin-knop admin-knop--primair admin-knop--volledig">Account aanmaken</button>
+    </form>
+  </main>
+
+  <script src="setup.js"></script>
+</body>
+</html>

@@ -13,6 +13,7 @@
  */
 
 let CONFIG = null; // wordt gevuld na het laden; dit is de "working copy"
+let HUIDIGE_GEBRUIKER = null;
 
 // ---------------------------------------------------------------- Pad-helpers
 function getIn(obj, pad) {
@@ -82,6 +83,9 @@ function renderVeld(config, veld) {
       })
     );
     wrapper.appendChild(select);
+  } else if (veld.type === "image") {
+    wrapper.appendChild(renderAfbeeldingVeld(config, veld, waarde));
+    return wrapper;
   } else if (veld.type === "number") {
     const input = el("input", {
       type: "number",
@@ -105,6 +109,66 @@ function renderVeldenGrid(config, velden) {
   return el("div", { class: "admin-grid-2" }, ...velden.map((v) => renderVeld(config, v)));
 }
 
+// ---------------------------------------------------------- Afbeeldingsveld
+// Toont een URL-veld + preview + een knop om een bestand te uploaden. Na
+// een geslaagde upload wordt de URL automatisch ingevuld.
+function renderAfbeeldingVeld(config, veld, huidigeWaarde) {
+  const wrapper = el("div", { class: "admin-afbeelding-veld" });
+
+  const preview = el("img", { class: "admin-afbeelding-preview" });
+  preview.src = huidigeWaarde || "";
+  preview.style.display = huidigeWaarde ? "block" : "none";
+  preview.addEventListener("error", () => { preview.style.display = "none"; });
+  preview.addEventListener("load", () => { preview.style.display = "block"; });
+
+  const urlInput = el("input", { type: "text", placeholder: "https://... of upload hieronder" });
+  urlInput.value = huidigeWaarde || "";
+  urlInput.addEventListener("input", (e) => {
+    setIn(config, veld.path, e.target.value);
+    preview.src = e.target.value;
+  });
+
+  const bestandInput = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif,image/svg+xml" });
+  bestandInput.style.display = "none";
+
+  const statusEl = el("span", { class: "admin-afbeelding-status" }, "");
+
+  const uploadKnop = el(
+    "button",
+    { type: "button", class: "admin-knop admin-knop--rand admin-knop--klein", onclick: () => bestandInput.click() },
+    "Bestand kiezen..."
+  );
+
+  bestandInput.addEventListener("change", async () => {
+    const bestand = bestandInput.files[0];
+    if (!bestand) return;
+    statusEl.textContent = "Bezig met uploaden...";
+    uploadKnop.disabled = true;
+    try {
+      const formData = new FormData();
+      formData.append("bestand", bestand);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Uploaden is mislukt.");
+      urlInput.value = data.url;
+      setIn(config, veld.path, data.url);
+      preview.src = data.url;
+      statusEl.textContent = "Geüpload ✓";
+      setTimeout(() => { statusEl.textContent = ""; }, 3000);
+    } catch (err) {
+      statusEl.textContent = err.message || "Uploaden is mislukt.";
+    } finally {
+      uploadKnop.disabled = false;
+      bestandInput.value = "";
+    }
+  });
+
+  wrapper.appendChild(preview);
+  wrapper.appendChild(urlInput);
+  wrapper.appendChild(el("div", { class: "admin-afbeelding-acties" }, uploadKnop, bestandInput, statusEl));
+  return wrapper;
+}
+
 // ------------------------------------------------------------- Lijst-editor
 // Ondersteunt zowel lijsten van objecten (itemSchema met meerdere velden)
 // als lijsten van platte waarden (itemSchema met precies één veld met path: "").
@@ -112,6 +176,11 @@ function renderLijst(config, lijstDef) {
   const container = el("div", { class: "admin-lijst" });
   const itemsContainer = el("div", {});
   container.appendChild(itemsContainer);
+
+  const heeftArchief = !!lijstDef.archiefPath;
+  if (heeftArchief && !getIn(config, lijstDef.archiefPath)) {
+    setIn(config, lijstDef.archiefPath, []);
+  }
 
   function tekenItems() {
     itemsContainer.innerHTML = "";
@@ -127,7 +196,16 @@ function renderLijst(config, lijstDef) {
           { class: "admin-lijst-item-acties" },
           el("button", { type: "button", title: "Omhoog", onclick: () => verplaats(index, -1) }, "↑"),
           el("button", { type: "button", title: "Omlaag", onclick: () => verplaats(index, 1) }, "↓"),
-          el("button", { type: "button", class: "verwijderen", title: "Verwijderen", onclick: () => verwijder(index) }, "✕")
+          el(
+            "button",
+            {
+              type: "button",
+              class: "verwijderen",
+              title: heeftArchief ? "Archiveren" : "Verwijderen",
+              onclick: () => verwijder(index),
+            },
+            "✕"
+          )
         )
       );
       kaart.appendChild(kop);
@@ -168,7 +246,13 @@ function renderLijst(config, lijstDef) {
   }
   function verwijder(index) {
     const arr = getIn(config, lijstDef.path);
-    arr.splice(index, 1);
+    if (heeftArchief) {
+      const [item] = arr.splice(index, 1);
+      getIn(config, lijstDef.archiefPath).push(item);
+      tekenArchief();
+    } else {
+      arr.splice(index, 1);
+    }
     tekenItems();
   }
 
@@ -190,6 +274,60 @@ function renderLijst(config, lijstDef) {
     lijstDef.addLabel
   );
   container.appendChild(toevoegKnop);
+
+  // ------------------------------------------------------------- Archief
+  // Verwijderde items belanden hier in plaats van definitief te verdwijnen,
+  // zodat je ze later weer kunt terugzetten (bv. een review die je tijdelijk
+  // niet wilt tonen, zonder de tekst kwijt te raken).
+  let archiefEl = null;
+  let archiefLijstEl = null;
+  function tekenArchief() {
+    if (!archiefLijstEl) return;
+    const archiefArr = getIn(config, lijstDef.archiefPath) || [];
+    archiefLijstEl.innerHTML = "";
+    const label = archiefEl.querySelector(".admin-archief-kop span");
+    if (label) label.textContent = `Gearchiveerd (${archiefArr.length})`;
+    archiefArr.forEach((item, index) => {
+      const previewTekst = lijstDef.archiefPreview ? lijstDef.archiefPreview(item) : JSON.stringify(item);
+      const rij = el(
+        "div",
+        { class: "admin-archief-item" },
+        el("span", { class: "admin-archief-item-tekst" }, previewTekst),
+        el(
+          "button",
+          {
+            type: "button",
+            class: "admin-knop admin-knop--rand admin-knop--klein",
+            onclick: () => {
+              const [teruggezet] = archiefArr.splice(index, 1);
+              getIn(config, lijstDef.path).push(teruggezet);
+              tekenItems();
+              tekenArchief();
+            },
+          },
+          "↩ Terugzetten"
+        )
+      );
+      archiefLijstEl.appendChild(rij);
+    });
+  }
+
+  if (heeftArchief) {
+    archiefLijstEl = el("div", { class: "admin-archief-lijst" });
+    archiefEl = el(
+      "div",
+      { class: "admin-archief" },
+      el(
+        "button",
+        { type: "button", class: "admin-archief-kop", onclick: () => archiefEl.classList.toggle("open") },
+        el("span", {}, "Gearchiveerd (0)"),
+        el("span", {}, "›")
+      ),
+      archiefLijstEl
+    );
+    container.appendChild(archiefEl);
+    tekenArchief();
+  }
 
   return container;
 }
@@ -242,6 +380,26 @@ function toonMelding(tekst, type) {
 
 async function init() {
   const inhoud = document.getElementById("admin-inhoud");
+
+  // Auth-check — de server blokkeert /admin al voor niet-ingelogde
+  // bezoekers, maar deze check dekt ook het geval dat iemand lang op een
+  // gecachete pagina blijft staan nadat de sessie is verlopen.
+  try {
+    const meRes = await fetch("/api/me");
+    const me = await meRes.json();
+    if (!me.ingelogd) {
+      window.location.href = me.setupNodig ? "/admin/setup.html" : "/admin/login.html";
+      return;
+    }
+    HUIDIGE_GEBRUIKER = me.gebruiker;
+    const ingelogdAls = document.getElementById("ingelogd-als");
+    if (ingelogdAls) {
+      ingelogdAls.textContent = `${HUIDIGE_GEBRUIKER.gebruikersnaam} (${HUIDIGE_GEBRUIKER.rol})`;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
   try {
     CONFIG = await laadConfig();
   } catch (err) {
@@ -253,6 +411,11 @@ async function init() {
 
   inhoud.innerHTML = "";
   SCHEMA.forEach((sectieDef) => inhoud.appendChild(renderSectie(CONFIG, sectieDef)));
+
+  if (HUIDIGE_GEBRUIKER && HUIDIGE_GEBRUIKER.rol === "admin") {
+    inhoud.appendChild(await renderGebruikersSectie());
+  }
+
   const eerste = inhoud.querySelector(".admin-sectie");
   if (eerste) eerste.classList.add("open");
 
@@ -262,6 +425,144 @@ async function init() {
     el("button", { type: "button", class: "admin-knop admin-knop--primair", onclick: opslaan }, "Alles opslaan")
   );
   inhoud.appendChild(opslaanOnderaan);
+}
+
+// ------------------------------------------------------------ Gebruikersbeheer
+// Werkt los van de "Opslaan"-knop van de content: elke actie (toevoegen,
+// verwijderen) wordt meteen naar de server gestuurd, net als bij een echt
+// gebruikersbeheerscherm.
+async function renderGebruikersSectie() {
+  const sectieEl = el("section", { class: "admin-sectie" });
+  sectieEl.appendChild(
+    el(
+      "button",
+      { type: "button", class: "admin-sectie-kop", onclick: () => sectieEl.classList.toggle("open") },
+      el("span", {}, "Gebruikersbeheer"),
+      el("span", { class: "pijl" }, "›")
+    )
+  );
+
+  const body = el("div", { class: "admin-sectie-body" });
+  body.appendChild(
+    el(
+      "p",
+      { class: "admin-sectie-uitleg" },
+      "Alleen zichtbaar voor accounts met de rol 'admin'. Wijzigingen hier zijn direct actief — hier is geen aparte opslaan-knop voor nodig."
+    )
+  );
+  const lijstEl = el("div", {});
+  const foutEl = el("div", { class: "admin-melding fout", style: "margin:0 0 1rem;" });
+  body.appendChild(foutEl);
+  body.appendChild(lijstEl);
+
+  async function tekenGebruikers() {
+    lijstEl.innerHTML = "";
+    let gebruikers;
+    try {
+      const res = await fetch("/api/gebruikers");
+      gebruikers = await res.json();
+    } catch (err) {
+      lijstEl.appendChild(el("p", {}, "Kon gebruikers niet laden."));
+      return;
+    }
+    gebruikers.forEach((g) => {
+      const rij = el(
+        "div",
+        { class: "admin-gebruiker-rij" },
+        el(
+          "div",
+          { class: "admin-gebruiker-info" },
+          el(
+            "strong",
+            {},
+            g.gebruikersnaam,
+            el("span", { class: `admin-rol-badge ${g.rol}` }, g.rol)
+          ),
+          el("span", {}, `Aangemaakt op ${new Date(g.aangemaaktOp).toLocaleDateString("nl-NL")}`)
+        ),
+        el(
+          "button",
+          {
+            type: "button",
+            class: "admin-knop admin-knop--verwijder admin-knop--klein",
+            onclick: () => verwijderGebruiker(g),
+          },
+          "Verwijderen"
+        )
+      );
+      lijstEl.appendChild(rij);
+    });
+  }
+
+  async function verwijderGebruiker(g) {
+    foutEl.classList.remove("zichtbaar");
+    if (!window.confirm(`Account "${g.gebruikersnaam}" verwijderen?`)) return;
+    try {
+      const res = await fetch(`/api/gebruikers/${g.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Verwijderen is mislukt.");
+      tekenGebruikers();
+    } catch (err) {
+      foutEl.textContent = err.message;
+      foutEl.classList.add("zichtbaar");
+    }
+  }
+
+  await tekenGebruikers();
+
+  // -------------------------------------------------------- Nieuw account
+  const naamInput = el("input", { type: "text", placeholder: "Gebruikersnaam" });
+  const wachtwoordInput = el("input", { type: "password", placeholder: "Wachtwoord (min. 8 tekens)" });
+  const rolSelect = el(
+    "select",
+    {},
+    el("option", { value: "editor" }, "Editor — kan inhoud bewerken"),
+    el("option", { value: "admin" }, "Admin — kan ook accounts beheren")
+  );
+  const toevoegKnop = el(
+    "button",
+    {
+      type: "button",
+      class: "admin-knop admin-knop--primair admin-knop--klein",
+      onclick: async () => {
+        foutEl.classList.remove("zichtbaar");
+        try {
+          const res = await fetch("/api/gebruikers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              gebruikersnaam: naamInput.value.trim(),
+              wachtwoord: wachtwoordInput.value,
+              rol: rolSelect.value,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Aanmaken is mislukt.");
+          naamInput.value = "";
+          wachtwoordInput.value = "";
+          tekenGebruikers();
+        } catch (err) {
+          foutEl.textContent = err.message;
+          foutEl.classList.add("zichtbaar");
+        }
+      },
+    },
+    "+ Account toevoegen"
+  );
+
+  body.appendChild(
+    el(
+      "div",
+      { class: "admin-nieuw-gebruiker" },
+      el("div", { class: "admin-veld" }, el("label", {}, "Gebruikersnaam"), naamInput),
+      el("div", { class: "admin-veld" }, el("label", {}, "Wachtwoord"), wachtwoordInput),
+      el("div", { class: "admin-veld" }, el("label", {}, "Rol"), rolSelect),
+      toevoegKnop
+    )
+  );
+
+  sectieEl.appendChild(body);
+  return sectieEl;
 }
 
 async function opslaan() {
@@ -274,7 +575,16 @@ async function opslaan() {
   }
 }
 
+async function uitloggen() {
+  try {
+    await fetch("/api/logout", { method: "POST" });
+  } finally {
+    window.location.href = "/admin/login.html";
+  }
+}
+
 document.getElementById("opslaan-knop").addEventListener("click", opslaan);
+document.getElementById("uitloggen-knop").addEventListener("click", uitloggen);
 document.addEventListener("DOMContentLoaded", init);
 
 // ============================================================================
@@ -299,7 +609,7 @@ const SCHEMA = [
       { path: "bedrijf.naam", label: "Bedrijfsnaam", type: "text" },
       { path: "bedrijf.slogan", label: "Slogan", type: "text" },
       { path: "bedrijf.logoTekst", label: "Logo-tekst (zonder logo-afbeelding)", type: "text" },
-      { path: "bedrijf.logoAfbeelding", label: "Pad naar logo-afbeelding (optioneel)", type: "text" },
+      { path: "bedrijf.logoAfbeelding", label: "Logo-afbeelding (optioneel)", type: "image" },
       { path: "bedrijf.favicon", label: "Pad naar favicon", type: "text" },
       { path: "bedrijf.kvkNummer", label: "KvK-nummer", type: "text" },
       { path: "bedrijf.btwNummer", label: "BTW-nummer", type: "text" },
@@ -330,7 +640,7 @@ const SCHEMA = [
       { path: "hero.knopPrimair.link", label: "Primaire knop — link", type: "text" },
       { path: "hero.knopSecundair.tekst", label: "Secundaire knop — tekst", type: "text" },
       { path: "hero.knopSecundair.link", label: "Secundaire knop — link", type: "text" },
-      { path: "hero.afbeelding", label: "Afbeelding — URL", type: "text" },
+      { path: "hero.afbeelding", label: "Afbeelding", type: "image" },
       { path: "hero.afbeeldingAlt", label: "Afbeelding — alt-tekst", type: "text" },
       { path: "hero.uitgelichtCijfer.cijfer", label: "Uitgelicht cijfer", type: "text" },
       { path: "hero.uitgelichtCijfer.label", label: "Uitgelicht cijfer — label", type: "text" },
@@ -360,7 +670,7 @@ const SCHEMA = [
       { path: "overOns.titel", label: "Sectietitel", type: "text" },
       { path: "overOns.tekst.0", label: "Alinea 1", type: "textarea" },
       { path: "overOns.tekst.1", label: "Alinea 2", type: "textarea" },
-      { path: "overOns.afbeelding", label: "Afbeelding — URL", type: "text" },
+      { path: "overOns.afbeelding", label: "Afbeelding", type: "image" },
       { path: "overOns.afbeeldingAlt", label: "Afbeelding — alt-tekst", type: "text" },
     ],
     list: {
@@ -402,12 +712,14 @@ const SCHEMA = [
       itemSchema: [
         { path: "titel", label: "Titel", type: "text" },
         { path: "categorie", label: "Categorie", type: "text" },
-        { path: "afbeelding", label: "Afbeelding — URL", type: "text" },
+        { path: "afbeelding", label: "Afbeelding", type: "image" },
       ],
     },
   },
   {
     title: "Klantbeoordelingen",
+    uitleg:
+      "Een review verwijderen (✕) archiveert 'm — de tekst blijft bewaard en je kunt 'm via 'Gearchiveerd' hieronder altijd weer terugzetten.",
     fields: [
       { path: "reviews.titel", label: "Sectietitel", type: "text" },
       { path: "reviews.gemiddeldeScore", label: "Gemiddelde score (bv. 4.9)", type: "number", step: "0.1" },
@@ -415,6 +727,8 @@ const SCHEMA = [
     ],
     list: {
       path: "reviews.lijst",
+      archiefPath: "reviews.archief",
+      archiefPreview: (item) => `${item.naam || "(naamloos)"} — "${(item.tekst || "").slice(0, 60)}${(item.tekst || "").length > 60 ? "…" : ""}"`,
       itemLabel: "Review",
       addLabel: "+ Review toevoegen",
       defaultItem: { naam: "", plaats: "", score: 5, tekst: "" },

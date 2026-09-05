@@ -1,28 +1,12 @@
-# Website-template met admin-paneel — uitleg en gebruik
+# Website-template met beveiligd admin-paneel — uitleg en gebruik
 
 Deze template is gebouwd om **herhaaldelijk aan te passen en te verkopen** aan
 lokale Nederlandse bedrijven. De website zelf is pure HTML/CSS/JS; een kleine
-Node-server eromheen serveert de site, een **admin-paneel** en een API zodat
-tekst, kleuren en afbeeldingen aangepast kunnen worden zonder in code te
-duiken. Je zet het één keer op voor een klant; de klant kan daarna zelf
-teksten en prijzen bijwerken via `/admin`.
-
-## ⚠️ Beveiliging — lees dit eerst
-
-**Er zit op uitdrukkelijk verzoek geen inlog/wachtwoord op het admin-paneel.**
-Iedereen die het adres kent (bijvoorbeeld `jouwdomein.nl/admin`) kan de inhoud
-van de website aanpassen — er is geen gebruikersnaam, wachtwoord of token.
-Overweeg in elk geval één van deze twee simpele opties zodra de site online
-staat:
-
-- **Reverse-proxy basic auth** — als je al Nginx, Traefik of Caddy voor de
-  site gebruikt, is een wachtwoordje via Basic Auth een kwestie van een paar
-  regels config, zonder dat de code van deze template hoeft te veranderen.
-- **IP-allowlist** — sta `/admin` alleen toe vanaf het kantoor-IP van de klant
-  of jouw eigen IP.
-
-Zonder een van deze maatregelen staat het admin-paneel gewoon open voor
-iedereen die de URL raadt of vindt.
+Node-server eromheen serveert de site, een **beveiligd admin-paneel** en een
+API zodat tekst, kleuren, foto's en accounts beheerd kunnen worden zonder in
+code te duiken. Je zet het één keer op voor een klant (inclusief je eigen
+beheerder-account); de klant kan daarna zelf teksten en prijzen bijwerken via
+`/admin`, met een eigen account en eigen rol.
 
 ## Architectuur
 
@@ -35,13 +19,18 @@ iedereen die de URL raadt of vindt.
 │       ├── render.js             ← Bouwt HTML per sectie op uit de config
 │       └── main.js                ← Haalt config op bij /api/config en rendert de pagina
 ├── admin/                       ← Het admin-paneel, bereikbaar op /admin
-│   ├── index.html
+│   ├── index.html                 ← Het beheerformulier (alleen na inloggen)
+│   ├── login.html / login.js       ← Inlogpagina
+│   ├── setup.html / setup.js        ← Eenmalige eerste-account-setup
 │   ├── admin.css
-│   └── admin.js                  ← Formulier gegenereerd uit één schema
+│   └── admin.js                     ← Formulier gegenereerd uit één schema
 ├── data/
-│   └── config.json               ← Alle bedrijfsinhoud — dit bewerk je (via /admin of direct)
+│   ├── config.json               ← Alle bedrijfsinhoud — dit bewerk je (via /admin of direct)
+│   ├── uploads/                   ← Geüploade foto's (via het admin-paneel)
+│   ├── users.json                 ← Accounts + rollen (wachtwoorden gehasht) — NIET in git
+│   └── session-secret.txt         ← Automatisch gegenereerd, NIET in git
 ├── server/
-│   ├── index.js                   ← Express-server: serveert site, admin-paneel én de config-API
+│   ├── index.js                   ← Express-server: site, admin-paneel, config-, upload- en auth-API
 │   └── package.json
 ├── Dockerfile                    ← Bouwt een image met server + site + admin-paneel
 ├── .github/workflows/
@@ -50,47 +39,119 @@ iedereen die de URL raadt of vindt.
 ```
 
 **Hoe het samenhangt:** `public/js/main.js` haalt bij het laden van de
-website de inhoud op bij `GET /api/config`. Het admin-paneel (`/admin`) toont
-diezelfde inhoud in een bewerkbaar formulier en stuurt wijzigingen terug naar
-`PUT /api/config`. De server (`server/index.js`) schrijft dat weg naar
-`data/config.json` — er is geen database nodig.
+website de inhoud op bij `GET /api/config` (dit endpoint is publiek — elke
+bezoeker van de site heeft dit nodig). Het admin-paneel (`/admin`) toont
+diezelfde inhoud in een bewerkbaar formulier, maar is zelf **niet** publiek:
+je moet ingelogd zijn. Wijzigingen worden teruggestuurd naar
+`PUT /api/config` (vereist inlog) en weggeschreven naar `data/config.json`.
 
-## Snel een nieuwe klant opzetten
+## Beveiliging: accounts, rollen en de eerste keer opstarten
 
-1. Vervang vóór de eerste deploy de voorbeeldinhoud in `data/config.json`
-   door de content van de nieuwe klant (of laat de voorbeeldinhoud staan en
-   pas alles later aan via `/admin` — beide werken).
-2. Bouw en publiceer de image (zie hieronder, via GitHub Actions).
-3. Draai de container op de server van de klant.
-4. Ga zelf naar `jouwdomein.nl/admin`, controleer/vul alle secties aan
-   (bedrijfsgegevens, kleuren, hero, diensten, etc.) en klik op **Opslaan**.
-5. Geef de klant het `/admin`-adres. Die kan vanaf nu zelf teksten, prijzen,
-   openingstijden, reviews en de FAQ bijwerken — zonder jou erbij nodig te
-   hebben.
+Er is nu een volwaardig login-systeem, met twee rollen:
 
-Voor kleurenkeuzes, lettertype-ideeën en sectievolgorde per branche
-(restaurant, kapper, garage, makelaar, etc.), zie de tabel verderop in dit
-bestand.
+- **admin** — kan alle content bewerken én accounts beheren (aanmaken/verwijderen).
+- **editor** — kan alle content bewerken, maar geen accounts beheren. Dit is
+  de rol die je aan een klant geeft.
+
+### Eerste keer opstarten
+
+Zolang er nog geen enkel account bestaat, stuurt de server iedereen die naar
+`/admin` gaat automatisch door naar een eenmalige **setup-pagina**
+(`/admin/setup.html`). Daar maak je het eerste account aan — dit wordt
+altijd automatisch een **admin**-account. Zodra dat account bestaat, is de
+setup-pagina niet meer bruikbaar (de server geeft dan een foutmelding terug
+als iemand 'm alsnog probeert te gebruiken).
+
+**Aanbevolen volgorde bij een nieuwe klant:**
+1. Start de container voor het eerst.
+2. Ga zelf naar `jouwdomein.nl/admin` → je komt in de setup-pagina terecht →
+   maak jouw eigen admin-account aan.
+3. Log in, vul de content in (of pas de voorbeeldinhoud aan).
+4. Open in het admin-paneel de sectie **Gebruikersbeheer** (helemaal
+   onderaan, alleen zichtbaar voor admins) en maak daar een **editor**-account
+   voor de klant aan.
+5. Geef de klant hun eigen inloggegevens. Zij zien geen "Gebruikersbeheer"-
+   sectie en kunnen dus geen andere accounts aanmaken of verwijderen — alleen
+   content bewerken.
+
+### Gebruikersbeheer
+
+In de sectie **Gebruikersbeheer** (alleen zichtbaar voor admins) kun je:
+- alle bestaande accounts zien, met hun rol;
+- een nieuw account toevoegen (gebruikersnaam, wachtwoord, rol);
+- een account verwijderen.
+
+Wijzigingen hier zijn direct actief — er is geen aparte "Opslaan"-knop voor
+nodig, in tegenstelling tot de content-secties.
+
+Ingebouwde veiligheidsgrendels: je kunt je **eigen** account niet
+verwijderen terwijl je ingelogd bent, en je kunt de **laatste** admin niet
+verwijderen (zodat je nooit buitengesloten raakt).
+
+### Wachtwoord vergeten / opnieuw beginnen
+
+Er is bewust geen "wachtwoord vergeten"-mailflow (dat vraagt om een
+mailserver, wat voor dit soort kleine sites overkill is). Ben je een
+wachtwoord kwijt?
+- Als admin: log in met een ander admin-account (als dat bestaat) en maak
+  een nieuw account aan, verwijder het oude.
+- Ben je alle toegang kwijt: verwijder `data/users.json` op de server (of in
+  de volume) en herstart de container. De setup-pagina wordt dan opnieuw
+  actief en je kunt een nieuw eerste account aanmaken. Let op: dit verwijdert
+  *alle* bestaande accounts, niet alleen die van jou.
+
+### Hoe de beveiliging technisch werkt (kort)
+
+- Wachtwoorden worden gehasht met bcrypt — er wordt nergens een wachtwoord
+  in leesbare vorm bewaard.
+- Sessies zijn ondertekende cookies (geen sessie-database nodig). De
+  ondertekeningssleutel staat in `data/session-secret.txt`, automatisch
+  gegenereerd bij de eerste start. Verwijder je dat bestand, dan worden alle
+  bestaande sessies ongeldig (iedereen moet opnieuw inloggen) — verder
+  onschadelijk.
+- `GET /api/config` blijft bewust **publiek** — dat is dezelfde inhoud die
+  toch al zichtbaar is voor iedere bezoeker van de website. Alleen het
+  *wijzigen* van content, uploaden van bestanden en gebruikersbeheer vereisen
+  inloggen.
 
 ## Het admin-paneel gebruiken
 
-Open `/admin` in de browser. Elke sectie is inklapbaar; klik op een
-sectiekop om 'm te openen. Lijsten (diensten, reviews, FAQ, portfolio,
-openingstijden, ...) hebben een **+ toevoegen**-knop en per item knoppen om
-te verplaatsen (↑ ↓) of te verwijderen (✕). Klik onderaan (of rechtsboven)
-op **Opslaan** om de wijzigingen live te zetten — de wijziging is direct
-zichtbaar op de website, geen herstart of nieuwe deploy nodig.
+Open `/admin` in de browser (log in of doorloop de eenmalige setup). Elke
+sectie is inklapbaar; klik op een sectiekop om 'm te openen. Lijsten
+(diensten, reviews, FAQ, portfolio, openingstijden, ...) hebben een
+**+ toevoegen**-knop en per item knoppen om te verplaatsen (↑ ↓) of te
+verwijderen (✕). Klik rechtsboven op **Opslaan** om content-wijzigingen live
+te zetten — direct zichtbaar op de website, geen herstart nodig.
 
 De sectie **Sectievolgorde** bepaalt welke onderdelen van de pagina getoond
 worden en in welke volgorde (behalve hero en footer, die staan altijd vast
 boven- en onderaan).
 
-## Handmatig `data/config.json` bewerken
+### Reviews verwijderen én later terugzetten (archief)
 
-Wil je liever direct het bestand bewerken (bijvoorbeeld voor een grote
-eerste vulling)? Dat kan altijd naast het admin-paneel: pas
-`data/config.json` aan en herstart de container. Zorg dat het geldig JSON
-blijft (dubbele aanhalingstekens, geen trailing comma's).
+Bij **Klantbeoordelingen** verwijdert de ✕-knop een review niet definitief,
+maar **archiveert** 'm: de tekst blijft bewaard in een apart, inklapbaar
+"Gearchiveerd"-blokje onderaan die sectie. Wil je een review later weer
+laten zien? Klap het archief open en klik op **↩ Terugzetten** — de review
+verschijnt weer (onderaan) in de live lijst. Zo kan de klant zelf naar hun
+zin schuiven met welke reviews wél en niet zichtbaar zijn, zonder ooit de
+oorspronkelijke tekst kwijt te raken. Vergeet niet op **Opslaan** te klikken
+na het archiveren/terugzetten — het zijn gewone content-wijzigingen.
+
+### Foto's uploaden
+
+Bij elk afbeeldingsveld (hero, over ons, portfolio-projecten, logo) staat
+naast het URL-veld een knop **Bestand kiezen...**. Bestand selecteren, even
+wachten op "Geüpload ✓", klaar — geen losse hosting of URL's plakken nodig.
+
+- Toegestaan: JPG, PNG, WEBP, GIF en SVG, max. 8 MB per bestand.
+- Geüploade bestanden komen in `data/uploads/` terecht — dezelfde map/volume
+  als `config.json`, dus ze overleven ook een nieuwe image-versie.
+- Uploaden vereist inloggen (elke rol, admin of editor).
+- Een niet meer gebruikte upload wordt niet automatisch verwijderd. Bij een
+  enkele klantsite met een handvol foto's is dat verwaarloosbaar; loopt de
+  map vol, dan kun je `data/uploads/` gewoon opschonen (bestanden die nog in
+  `data/config.json` genoemd worden even laten staan).
 
 ## Een unieke uitstraling per branche
 
@@ -108,11 +169,9 @@ aan drie knoppen gedraaid te worden: **kleur, lettertype en sectievolgorde**
 | Fotograaf | `#111111` + neutrale accent | Minimalistisch | Portfolio groot en bovenaan, Diensten compact |
 | Lokale winkel | Merkkleur van de winkel | Toegankelijk | FAQ en Locatie vroeg in de volgorde |
 
-Lettertype wisselen kan ook via `/admin` → Huisstijl: vervang bijvoorbeeld
-"Fraunces" (sierlijke serif) door iets steviger zoals "Space Grotesk" of
-"Sora" bij een technische branche. Let op: het lettertype moet ook als
-Google Fonts-link in `public/index.html` staan (in de `<head>`) — die regel
-pas je één keer aan bij het opzetten van een nieuwe klant.
+Lettertype wisselen kan ook via `/admin` → Huisstijl. Let op: het lettertype
+moet ook als Google Fonts-link in `public/index.html` staan (in de `<head>`)
+— die regel pas je één keer aan bij het opzetten van een nieuwe klant.
 
 ## Uploaden naar GitHub + automatisch bouwen
 
@@ -144,9 +203,8 @@ Docker-image bouwt en publiceert naar de **GitHub Container Registry**
    met scope `read:packages`) als je 'm privé wilt houden.
 
 **Bij elke volgende codewijziging:** commit en push naar `main` → de
-workflow bouwt automatisch een nieuwe `latest`-image. Let op: dit is voor
-wijzigingen aan de **code** (nieuwe secties, andere styling). Content
-(teksten, prijzen, kleuren) wijzig je via `/admin` — dat vraagt geen nieuwe
+workflow bouwt automatisch een nieuwe `latest`-image. Content (teksten,
+prijzen, kleuren, accounts) wijzig je via `/admin` — dat vraagt geen nieuwe
 build of push.
 
 ## Draaien met Docker Compose (alleen pullen, niet bouwen)
@@ -164,16 +222,15 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - website-data:/app/data   # bewaart config.json (en dus alle admin-wijzigingen)
+      - website-data:/app/data   # bewaart config.json, accounts en geüploade foto's
 
 volumes:
   website-data:
 ```
 
 Belangrijk: de `volumes:`-regel is **niet optioneel**. Zonder deze volume
-wordt `data/config.json` bij elke nieuwe `docker compose pull` teruggezet
-naar de standaardinhoud uit de image, en ben je alle wijzigingen via
-`/admin` kwijt.
+verlies je bij elke nieuwe `docker compose pull` niet alleen de content,
+maar ook alle aangemaakte accounts (`data/users.json`) en de sessiesleutel.
 
 1. Vervang `OWNER/REPO` door je eigen GitHub-gebruikersnaam/organisatie en
    repositorynaam (kleine letters).
@@ -183,9 +240,10 @@ naar de standaardinhoud uit de image, en ben je alle wijzigingen via
    docker compose up -d
    ```
 3. De website is bereikbaar op `http://<server-ip>:8080`, het admin-paneel
-   op `http://<server-ip>:8080/admin`.
+   op `http://<server-ip>:8080/admin` (stuurt bij een verse install
+   automatisch door naar de setup-pagina).
 4. Bij een nieuwe codeversie: `docker compose pull && docker compose up -d`.
-   De content in de `website-data`-volume blijft daarbij behouden.
+   Content, accounts en uploads in de `website-data`-volume blijven behouden.
 
 ## Contactformulier
 
@@ -197,15 +255,7 @@ opties in `public/js/main.js` (functie `initContactformulier`):
 - Een formulierdienst zoals Formspree, Web3Forms of Basin (geen eigen
   server nodig, alleen het `action`-endpoint invullen).
 - Een eigen backend-endpoint via `fetch()` — je hebt de server al draaien,
-  dus een extra route in `server/index.js` (bv. die de melding doorstuurt
-  naar e-mail) is ook goed te doen.
-
-## Afbeeldingen
-
-De voorbeeldafbeeldingen komen van Unsplash en zijn alleen bedoeld als
-placeholder. Vervang de URL's via `/admin` door eigen, geoptimaliseerde
-foto's (bij voorkeur `.webp`, max. ~200 KB per stuk) voor een snellere
-laadtijd en betere SEO-score.
+  dus een extra route in `server/index.js` is ook goed te doen.
 
 ## SEO
 

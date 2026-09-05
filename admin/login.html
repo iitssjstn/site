@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inloggen — beheer</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-auth-body">
+  <main class="admin-auth-kaart">
+    <h1>Inloggen</h1>
+    <p class="admin-auth-uitleg">Log in om de website-inhoud te beheren.</p>
+
+    <form id="login-formulier">
+      <div class="admin-veld">
+        <label for="gebruikersnaam">Gebruikersnaam</label>
+        <input type="text" id="gebruikersnaam" name="gebruikersnaam" autocomplete="username" required>
+      </div>
+      <div class="admin-veld">
+        <label for="wachtwoord">Wachtwoord</label>
+        <input type="password" id="wachtwoord" name="wachtwoord" autocomplete="current-password" required>
+      </div>
+      <div id="foutmelding" class="admin-melding fout"></div>
+      <button type="submit" class="admin-knop admin-knop--primair admin-knop--volledig">Inloggen</button>
+    </form>
+  </main>
+
+  <script src="login.js"></script>
+</body>
+</html>
