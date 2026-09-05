@@ -202,13 +202,14 @@ p { margin: 0; }
 
 .admin-afbeelding-veld { display: flex; flex-direction: column; gap: 0.6rem; }
 .admin-afbeelding-preview {
-  max-width: 220px;
-  max-height: 140px;
+  max-width: 260px;
+  max-height: 160px;
   width: auto;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: var(--a-radius);
   border: 1px solid var(--a-lijn);
-  background: var(--a-papier);
+  background: repeating-conic-gradient(#EFEDE6 0% 25%, var(--a-papier) 0% 50%) 50% / 16px 16px;
+  padding: 6px;
 }
 .admin-afbeelding-acties { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
 .admin-afbeelding-status { font-size: 0.82rem; color: var(--a-inkt-zacht); }

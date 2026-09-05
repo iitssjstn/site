@@ -147,7 +147,7 @@ function renderAfbeeldingVeld(config, veld, huidigeWaarde) {
     preview.src = e.target.value;
   });
 
-  const bestandInput = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif,image/svg+xml" });
+  const bestandInput = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/x-icon,.ico" });
   bestandInput.style.display = "none";
 
   const statusEl = el("span", { class: "admin-afbeelding-status" }, "");
@@ -629,7 +629,7 @@ const SCHEMA = [
       { path: "bedrijf.slogan", label: "Slogan", type: "text" },
       { path: "bedrijf.logoTekst", label: "Logo-tekst (zonder logo-afbeelding)", type: "text" },
       { path: "bedrijf.logoAfbeelding", label: "Logo-afbeelding (optioneel)", type: "image" },
-      { path: "bedrijf.favicon", label: "Pad naar favicon", type: "text" },
+      { path: "bedrijf.favicon", label: "Favicon", type: "image" },
       { path: "bedrijf.kvkNummer", label: "KvK-nummer", type: "text" },
       { path: "bedrijf.btwNummer", label: "BTW-nummer", type: "text" },
     ],
