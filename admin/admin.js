@@ -47,6 +47,42 @@ function el(tag, attrs, ...kinderen) {
 // --------------------------------------------------------- Eén invoerveld
 function renderVeld(config, veld) {
   const waarde = getIn(config, veld.path);
+
+  // Kleurvelden krijgen een eigen label mét kleurstaal ervoor, zodat meteen
+  // duidelijk is welke kleur bij welke naam hoort — zonder dat je hoeft te
+  // schakelen tussen het label en de invoer eronder.
+  if (veld.type === "color") {
+    const geldig = /^#[0-9a-fA-F]{6}$/.test(waarde);
+    const swatch = el("span", { class: "admin-kleur-swatch" });
+    swatch.style.backgroundColor = geldig ? waarde : "#000000";
+
+    const wrapper = el("div", { class: "admin-veld" }, el("label", { class: "admin-kleur-label" }, swatch, veld.label));
+
+    const rij = el("div", { class: "admin-kleur-rij" });
+    const kleurInput = el("input", { type: "color" });
+    kleurInput.value = geldig ? waarde : "#000000";
+    const tekstInput = el("input", { type: "text" });
+    tekstInput.value = waarde ?? "";
+
+    kleurInput.addEventListener("input", (e) => {
+      tekstInput.value = e.target.value;
+      setIn(config, veld.path, e.target.value);
+      swatch.style.backgroundColor = e.target.value;
+    });
+    tekstInput.addEventListener("input", (e) => {
+      setIn(config, veld.path, e.target.value);
+      if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) {
+        kleurInput.value = e.target.value;
+        swatch.style.backgroundColor = e.target.value;
+      }
+    });
+
+    rij.appendChild(kleurInput);
+    rij.appendChild(tekstInput);
+    wrapper.appendChild(rij);
+    return wrapper;
+  }
+
   const wrapper = el("div", { class: "admin-veld" }, el("label", {}, veld.label));
 
   if (veld.type === "textarea") {
@@ -55,23 +91,6 @@ function renderVeld(config, veld) {
     });
     input.value = waarde ?? "";
     wrapper.appendChild(input);
-  } else if (veld.type === "color") {
-    const rij = el("div", { class: "admin-kleur-rij" });
-    const kleurInput = el("input", { type: "color" });
-    kleurInput.value = /^#[0-9a-fA-F]{6}$/.test(waarde) ? waarde : "#000000";
-    const tekstInput = el("input", { type: "text" });
-    tekstInput.value = waarde ?? "";
-    kleurInput.addEventListener("input", (e) => {
-      tekstInput.value = e.target.value;
-      setIn(config, veld.path, e.target.value);
-    });
-    tekstInput.addEventListener("input", (e) => {
-      setIn(config, veld.path, e.target.value);
-      if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) kleurInput.value = e.target.value;
-    });
-    rij.appendChild(kleurInput);
-    rij.appendChild(tekstInput);
-    wrapper.appendChild(rij);
   } else if (veld.type === "select") {
     const select = el(
       "select",
