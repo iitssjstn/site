@@ -1,0 +1,13 @@
+{
+  "name": "website-template-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveert de website en het admin-paneel, en beheert data/config.json.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

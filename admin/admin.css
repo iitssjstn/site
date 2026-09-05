@@ -1,0 +1,202 @@
+:root {
+  --a-inkt: #1C1B19;
+  --a-inkt-zacht: #66625A;
+  --a-lijn: #E2DFD8;
+  --a-papier: #FAF9F6;
+  --a-vlak: #FFFFFF;
+  --a-primair: #2C5545;
+  --a-primair-donker: #1F3E32;
+  --a-fout: #B3452C;
+  --a-succes: #2C5545;
+  --a-radius: 6px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--a-papier);
+  color: var(--a-inkt);
+  line-height: 1.5;
+}
+h1, h2, h3 { margin: 0; }
+p { margin: 0; }
+
+.admin-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  background: var(--a-vlak);
+  border-bottom: 1px solid var(--a-lijn);
+  padding: 1.1rem 1.75rem;
+}
+.admin-header h1 { font-size: 1.25rem; }
+.admin-header p { font-size: 0.88rem; color: var(--a-inkt-zacht); margin-top: 0.2rem; }
+.admin-header-acties { display: flex; gap: 0.7rem; align-items: center; flex-shrink: 0; }
+
+.admin-knop {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 1.1rem;
+  border-radius: var(--a-radius);
+  border: 1px solid transparent;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+.admin-knop--primair { background: var(--a-primair); color: #fff; }
+.admin-knop--primair:hover { background: var(--a-primair-donker); }
+.admin-knop--rand { background: transparent; border-color: var(--a-lijn); color: var(--a-inkt); }
+.admin-knop--rand:hover { border-color: var(--a-inkt); }
+.admin-knop--klein { padding: 0.4rem 0.8rem; font-size: 0.82rem; }
+.admin-knop--verwijder { background: transparent; color: var(--a-fout); border: 1px solid #E7C9BF; }
+.admin-knop--verwijder:hover { background: #FBEEEA; }
+
+.admin-melding {
+  display: none;
+  margin: 1rem 1.75rem 0;
+  padding: 0.8rem 1.1rem;
+  border-radius: var(--a-radius);
+  font-size: 0.92rem;
+}
+.admin-melding.zichtbaar { display: block; }
+.admin-melding.succes { background: #E4EDE8; color: var(--a-succes); }
+.admin-melding.fout { background: #F3E1DC; color: var(--a-fout); }
+
+.admin-inhoud {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.admin-laden { color: var(--a-inkt-zacht); padding: 2rem 0; text-align: center; }
+
+.admin-sectie {
+  background: var(--a-vlak);
+  border: 1px solid var(--a-lijn);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.admin-sectie-kop {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.4rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--a-inkt);
+}
+.admin-sectie-kop .pijl { transition: transform 160ms ease; color: var(--a-inkt-zacht); }
+.admin-sectie.open .admin-sectie-kop .pijl { transform: rotate(90deg); }
+.admin-sectie-body {
+  display: none;
+  padding: 0 1.4rem 1.4rem;
+  border-top: 1px solid var(--a-lijn);
+  padding-top: 1.2rem;
+}
+.admin-sectie.open .admin-sectie-body { display: block; }
+
+.admin-veld { margin-bottom: 1rem; }
+.admin-veld label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--a-inkt);
+}
+.admin-veld input[type="text"],
+.admin-veld input[type="number"],
+.admin-veld input[type="url"],
+.admin-veld textarea,
+.admin-veld select {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--a-lijn);
+  border-radius: var(--a-radius);
+  font-size: 0.92rem;
+  font-family: inherit;
+  color: var(--a-inkt);
+  background: var(--a-papier);
+}
+.admin-veld textarea { min-height: 80px; resize: vertical; }
+.admin-veld input[type="color"] {
+  width: 56px;
+  height: 38px;
+  padding: 2px;
+  border: 1px solid var(--a-lijn);
+  border-radius: var(--a-radius);
+  background: var(--a-papier);
+}
+.admin-kleur-rij { display: flex; align-items: center; gap: 0.7rem; }
+.admin-kleur-rij input[type="text"] { flex: 1; }
+
+.admin-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.2rem; }
+@media (max-width: 640px) { .admin-grid-2 { grid-template-columns: 1fr; } }
+
+.admin-lijst-item {
+  border: 1px solid var(--a-lijn);
+  border-radius: var(--a-radius);
+  padding: 1rem;
+  margin-bottom: 0.9rem;
+  background: var(--a-papier);
+  position: relative;
+}
+.admin-lijst-item-kop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+.admin-lijst-item-titel { font-size: 0.82rem; font-weight: 700; color: var(--a-inkt-zacht); text-transform: uppercase; letter-spacing: 0.03em; }
+.admin-lijst-item-acties { display: flex; gap: 0.4rem; }
+.admin-lijst-item-acties button {
+  background: none;
+  border: 1px solid var(--a-lijn);
+  border-radius: var(--a-radius);
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--a-inkt-zacht);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+.admin-lijst-item-acties button:hover { border-color: var(--a-inkt); color: var(--a-inkt); }
+.admin-lijst-item-acties button.verwijderen:hover { border-color: var(--a-fout); color: var(--a-fout); }
+
+.admin-toevoegen {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px dashed var(--a-lijn);
+  border-radius: var(--a-radius);
+  background: none;
+  color: var(--a-inkt-zacht);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-toevoegen:hover { border-color: var(--a-primair); color: var(--a-primair); }
+
+.admin-sectie-uitleg { font-size: 0.85rem; color: var(--a-inkt-zacht); margin-bottom: 1rem; }
+
+.admin-opslaan-onderaan {
+  position: sticky;
+  bottom: 0;
+  background: var(--a-vlak);
+  border-top: 1px solid var(--a-lijn);
+  padding: 1rem 1.75rem;
+  display: flex;
+  justify-content: flex-end;
+}

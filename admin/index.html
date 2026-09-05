@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beheer website-inhoud</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div>
+      <h1>Beheer website-inhoud</h1>
+      <p>Alle tekst, kleuren en afbeeldingen van de website pas je hieronder aan. Klik onderaan op <strong>Opslaan</strong> om te publiceren.</p>
+    </div>
+    <div class="admin-header-acties">
+      <a href="/" target="_blank" rel="noopener" class="admin-knop admin-knop--rand">Bekijk website ↗</a>
+      <button type="button" id="opslaan-knop" class="admin-knop admin-knop--primair">Opslaan</button>
+    </div>
+  </header>
+
+  <div id="melding" class="admin-melding" role="status"></div>
+
+  <main id="admin-inhoud" class="admin-inhoud">
+    <p class="admin-laden">Inhoud wordt geladen...</p>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
