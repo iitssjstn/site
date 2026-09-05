@@ -2,3 +2,9 @@
 Thumbs.db
 node_modules/
 *.log
+
+# Runtime-data — wordt bij de eerste start aangemaakt, hoort niet in git
+data/users.json
+data/session-secret.txt
+data/config.json.bak
+data/uploads/
